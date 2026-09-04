@@ -24,4 +24,10 @@ export const env = {
     synchronize: process.env.DB_SYNCHRONIZE === "true",
     logging: process.env.DB_LOGGING === "true",
   },
+
+  jwt: {
+    secret: required("JWT_SECRET"),
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",
+    refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "30d",
+  },
 } as const;
