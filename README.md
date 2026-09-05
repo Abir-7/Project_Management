@@ -2,7 +2,7 @@
 
 A **multi-tenant SaaS** project management platform where many companies use the same application while each company's data stays fully isolated. Every company manages its own **people, teams, projects, and phase-based deliverables** under a clear role hierarchy: **Owner → HR → Supervisor → Leader → Employee**.
 
-> **Repository status:** this README describes the full target product. The current code in `src/` is a starter scaffold (Express + TypeORM) covering authentication, organization, project, and generic task endpoints. The domain described below (HR/Supervisor/Leader/Employee roles, Teams, Phases, delivery approvals) is the planned build-out — see [Roadmap](#roadmap).
+> **Repository status:** this README describes the full target product. The current code in `src/` is a starter scaffold (Express + TypeORM): config, data source, and a health check. No business modules exist yet — the domain below (roles, Teams, Phases, delivery approvals) is the planned build-out, organized as a **true modular monolith** — see [Roadmap](#10-roadmap).
 
 ---
 
@@ -225,43 +225,51 @@ not_started ──▶ in_progress ──▶ pending_approval ──▶ delivered
 
 The project is built as a **true modular monolith**: one deployable service and one database — all the operational simplicity of a monolith — while the code is organized into **fully independent modules**. Each module is a self-contained vertical slice of the product: it owns its routes, business logic, entities, repositories, and validation, and **never imports another module**.
 
+Module boundaries follow **table ownership**: a module is the only code that reads or writes its tables. Applying that rule produces three modules. Where a naive feature split would give two modules the same table, the table wins — those features belong to one module:
+
+- **`identity`** owns `organizations` + `users`. Registration (tenant + owner), login/refresh, and staff provisioning (Owner→HR→Supervisor→Leader/Employee) all work on these two tables, so they cannot be separate modules. JWT signing/verification has no tables and lives in `shared/middleware` — it is plumbing, not a module.
+- **`teams`** owns `teams` + `team_members`.
+- **`projects`** owns `projects`, `phases`, `phase_assignments`, `phase_notes`, `phase_deliveries`. Project/Phase CRUD, progress updates, notes, and the deliver → approve/reject workflow all mutate `phases`, so they live in one module.
+
 ```
 src/
 ├── modules/
-│   ├── auth/        # tenant + owner registration, login / refresh (JWT)
-│   ├── directory/   # staff provisioning: Owner→HR, HR→Supervisor, designations
+│   ├── identity/    # tenant + owner registration, login / refresh (JWT), org profile,
+│   │                #   provisioning: Owner→HR→Supervisor→Leader/Employee, designations
 │   ├── teams/       # teams & team membership (leaders / employees)
-│   ├── projects/    # projects, phases, phase assignments, deadlines
-│   └── delivery/    # progress updates, notes, deliver → approve / reject
+│   └── projects/    # projects, phases, assignments, notes, deadlines + the delivery
+│                    #   workflow: progress, deliver → approve / reject
 ├── contracts/       # plain interfaces, DTOs & event types (types only, no logic)
-├── shared/          # plumbing only: config, logger, error helpers, tenant/auth middleware
-└── app.ts           # composition root: mounts routers, wires the event bus
+├── shared/          # plumbing only: config, logger, error helpers, tenant/JWT/role middleware, event bus
+└── app.ts           # composition root: mounts routers, registers module entities, wires the event bus
 ```
+
+Future modules (e.g. notifications for overdue deadlines, audit/activity feed) join the same pattern later as event subscribers with their own tables — no existing module changes.
 
 Every module is a self-contained folder:
 
 ```
 src/modules/<name>/
-├── routes/          # HTTP layer — one router, exported for the composition root
+├── routes/          # HTTP layer — one or more routers, exported for the composition root
 ├── services/        # business logic
 ├── entities/        # TypeORM entities (this module's tables only)
 ├── repositories/    # data access
 ├── schemas/         # Zod validation
 ├── events/          # events this module publishes / subscribes to
-└── index.ts         # module manifest — what the composition root mounts
+└── index.ts         # module manifest — exports the router and its entity classes
 ```
 
 Independence rules:
 
-- **Zero cross-module imports** — code inside `modules/<name>/` may import only from its own folder and from `shared/` plumbing. Importing another module — even its public entry point — is forbidden, enforced by convention today and by import linting later.
-- **No shared state and no direct calls** — modules communicate only through **domain events** (event shapes defined in `contracts/`) carried by an in-process event bus that the composition root wires. A module never calls another module's functions, services, or repositories, and never reads another module's tables.
+- **Zero cross-module imports** — code inside `modules/<name>/` may import only from its own folder, from `contracts/` (types), and from `shared/` plumbing. Importing another module — even its public entry point — is forbidden, enforced by convention today and by import linting later.
+- **No shared state and no direct calls** — modules communicate only through **domain events** (event payloads defined in `contracts/`) carried by an in-process event bus that the composition root wires. A module never calls another module's functions, services, or repositories, and never reads another module's tables.
 - **Table ownership** — each module creates and touches only its own tables; cross-module SQL does not exist.
-- **`shared/` = plumbing only** — config, logger, error helpers, tenant/auth middleware. No business logic may live there.
-- **`contracts/` = types only** — plain interfaces, DTOs, and event shapes shared by modules; no implementation may live there.
-- **Composition root** — `app.ts` is the only file that knows about all modules: it mounts their routers, initializes the event bus, and subscribes each module to the events it declared. No module imports `app.ts`.
+- **Cross-module references are scalar columns only** — e.g. `team_members.user_id` or `phase_assignments.user_id` store plain ids. A module never declares a TypeORM relation to — or joins — another module's table (that would require importing its entity). Referential integrity is enforced by database foreign keys.
+- **`shared/` = plumbing only** — config, logger, error helpers, tenant/JWT/role middleware, event bus. No business logic may live there.
+- **`contracts/` = types only** — DTOs, enums, and event payloads. TypeORM entity classes are implementation and live in the module that owns the table, never in `contracts/`.
+- **Entity registration stays out of `shared/`** — `shared/database` exposes a register-entities helper but never imports module code. Each module manifest exports its entity classes; `app.ts` collects them and registers them with the DataSource before bootstrap.
+- **Composition root** — `app.ts` is the only file that knows about all modules: it imports their manifests, mounts their routers, registers their entities, initializes the event bus, and subscribes each module to the events it declared. No module imports `app.ts`.
 - **Independently developed, tested, and extracted** — because every module is self-contained with inward-only dependencies, it can be built and unit-tested on its own and later lifted out of the monolith into its own service (even its own database) without touching the other modules.
-
-The starter scaffold's flat `src/` (config / entities / middleware / routes / services) is the stepping stone; the build-out reorganizes it into `modules/` + `contracts/` + `shared/`.
 
 ---
 
@@ -288,15 +296,12 @@ Health check: `GET http://localhost:3000/health`.
 
 ## 10. Roadmap
 
-- [ ] Extend `users.role` to `owner | hr | supervisor | leader | employee` and provision endpoints (Owner→HR, HR→Supervisor, Supervisor→Leader/Employee)
-- [ ] `teams` + `team_members` entities with supervisor/leader membership management
-- [ ] Rework `projects` → owned by Leaders with status enum `draft | active | on_hold | completed | cancelled`
-- [ ] Add `phases` (deadline, status lifecycle, progress), `phase_assignments`, `phase_notes`, `phase_deliveries`
-- [ ] Replace generic tasks with the Phase delivery workflow (employee delivers → leader approves/rejects)
-- [ ] Role guard middleware + strict per-role route protection with tenant scoping
-- [ ] Add `designation` (`ai_developer`, `backend_developer`, `frontend_developer`, `app_developer`, `devops_developer`) + `techStack` (`python`/`nodejs`, `flutter`/`react_native`) on `users`, required when provisioning Leaders/Employees
-- [ ] Allow a Leader to **self-assign** to a Phase via the same assignees endpoint
-- [ ] Force password change on first login for provisioned staff
-- [ ] Overdue-deadline notifications & dashboard per role
-- [ ] Audit log / activity feed for project & phase events
-- [ ] Reorganize the flat `src/` scaffold into the modular-monolith layout (`modules/` + `contracts/` + `shared/`) with hard independence rules (no cross-module imports, event-based communication)
+Modules are built in dependency order — first the foundation every module needs, then `identity` (nothing works without a tenant and users), then `teams`, then `projects`.
+
+- [ ] **Foundation** — shared plumbing (`shared/`): config, logger, errors, event bus, JWT/tenant/role-guard + validation middleware, utils; `contracts/` types (DTOs, enums, event payloads); reorganized layout `modules/` + `contracts/` + `shared/`
+- [ ] **`identity` module** — `organizations` + `users` entities; `POST /auth/register` (company + owner), login/refresh, org profile; provisioning Owner→HR→Supervisor→Leader/Employee with `designation` + `techStack`; temporary passwords flagged for change on first login
+- [ ] **`teams` module** — `teams` + `team_members` entities; Supervisor creates Teams, assigns/unassigns Leaders and Employees; Leader manages their own Teams' membership
+- [ ] **`projects` module** — Leader-owned `projects` with status enum `draft | active | on_hold | completed | cancelled`; `phases` with deadline, status lifecycle, and progress; `phase_assignments` (one or many assignees, Leader may self-assign); `phase_notes`; deliver → approve/reject recorded in `phase_deliveries`
+- [ ] **Route hardening** — role guard + strict per-role route protection with tenant scoping on every module
+- [ ] **Notifications** — overdue-deadline notifications and per-role dashboard (new event-subscriber module)
+- [ ] **Audit log / activity feed** for project & phase events (new event-subscriber module)
