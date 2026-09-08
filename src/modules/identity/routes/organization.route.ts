@@ -5,11 +5,9 @@ import { sendSuccess } from "../../../shared/utils/api-response.js";
 
 import { validate } from "../../../shared/middlewares/validate.js";
 import { createOrganizationSchema } from "../schemas/organization.schema.js";
-import { OrganizationController } from "../controllers/organization.controller.js";
+import { organizationController } from "../controllers/organization.controller.js";
 
 const router = Router();
-
-const organizationController = new OrganizationController();
 
 router.post(
   "/",

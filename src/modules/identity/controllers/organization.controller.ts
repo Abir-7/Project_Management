@@ -1,14 +1,13 @@
 import type { Request, Response } from "express";
-import type { CreateOrganizationDto } from "../schemas/organization.schema.js";
-import { OrganizationService } from "../services/organization.service.js";
+
 import { sendSuccess } from "../../../shared/utils/api-response.js";
 import { StatusCodes } from "http-status-codes";
+import type { CreateOrganizationInput } from "../schemas/organization.schema.js";
+import { organizationService } from "../services/organization.service.js";
 
-const organizationService = new OrganizationService();
-
-export class OrganizationController {
+class OrganizationController {
   async createOrganization(req: Request, res: Response): Promise<void> {
-    const { name, slug } = req.body as CreateOrganizationDto;
+    const { name, slug } = req.body as CreateOrganizationInput;
     const organization = await organizationService.createOrganization({
       name,
       slug,
@@ -20,3 +19,5 @@ export class OrganizationController {
     });
   }
 }
+
+export const organizationController = new OrganizationController();
