@@ -18,12 +18,6 @@ export class UserAuth {
   @Column({ type: "uuid", unique: true })
   userId!: string;
 
-  @OneToOne(() => User, {
-    onDelete: "CASCADE",
-  })
-  @JoinColumn({ name: "userId" })
-  user!: User;
-
   @Column({ type: "varchar", length: 255 })
   passwordHash!: string;
 

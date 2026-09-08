@@ -11,17 +11,11 @@ export class User {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
 
-  @Column({ type: "uuid" })
-  organizationId!: string;
-
   @Column({ type: "varchar", length: 100 })
   name!: string;
 
   @Column({ type: "varchar", length: 255, unique: true })
   email!: string;
-
-  @Column({ type: "varchar", length: 50 })
-  role!: string;
 
   @Column({ type: "varchar", length: 100, nullable: true })
   designation!: string | null;
