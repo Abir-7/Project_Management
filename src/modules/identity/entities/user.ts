@@ -23,6 +23,9 @@ export class User {
   @Column({ type: "varchar", length: 100, nullable: true })
   techStack!: string | null;
 
+  @Column({ type: "boolean", default: false })
+  emailVerified!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

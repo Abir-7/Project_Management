@@ -2,8 +2,10 @@ import express, { type Express, type Request, type Response } from "express";
 import { AppDataSource } from "./shared/database/data-source.js";
 import { notFoundMiddleware } from "./shared/middlewares/not-found.middleware.js";
 import { errorMiddleware } from "./shared/middlewares/error.middleware.js";
-
+import identityRouter from "./modules/identity/index.js";
 const app: Express = express();
+
+app.use(express.json());
 
 app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
@@ -21,6 +23,8 @@ app.get("/health", async (_req: Request, res: Response) => {
     });
   }
 });
+
+app.use("/api", identityRouter);
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);

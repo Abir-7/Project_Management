@@ -5,6 +5,7 @@ import { Organization } from "../../modules/identity/entities/organization.js";
 import { User } from "../../modules/identity/entities/user.js";
 import { UserAuth } from "../../modules/identity/entities/user-auth.js";
 import { OrganizationMembership } from "../../modules/identity/entities/organization-membership.js";
+import { EmailVerificationToken } from "../../modules/identity/entities/email-verification-token.js";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -15,5 +16,12 @@ export const AppDataSource = new DataSource({
   database: env.database.name,
   synchronize: env.database.synchronize,
   logging: env.database.logging,
-  entities: [Branch, Organization, User, UserAuth, OrganizationMembership],
+  entities: [
+    Branch,
+    Organization,
+    User,
+    UserAuth,
+    OrganizationMembership,
+    EmailVerificationToken,
+  ],
 });

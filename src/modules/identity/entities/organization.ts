@@ -17,9 +17,6 @@ export class Organization {
   @Column({ type: "varchar", length: 100, unique: true })
   slug!: string;
 
-  @Column({ type: "varchar", length: 20, default: "free" })
-  plan!: string;
-
   @CreateDateColumn()
   createdAt!: Date;
 

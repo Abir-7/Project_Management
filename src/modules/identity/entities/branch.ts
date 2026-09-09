@@ -3,10 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from "typeorm";
 
 @Entity("branches")
+@Unique(["organizationId", "name"])
 export class Branch {
   @PrimaryGeneratedColumn("uuid")
   id!: string;
