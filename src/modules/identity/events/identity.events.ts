@@ -1,6 +1,3 @@
-export interface UserRegisteredEvent {
-  userId: string;
-  email: string;
-  name: string;
-  verificationToken: string;
-}
+export const IDENTITY_EVENTS = {
+  USER_REGISTERED: "user.registered",
+} as const;

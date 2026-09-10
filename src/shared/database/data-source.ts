@@ -6,6 +6,7 @@ import { User } from "../../modules/identity/entities/user.js";
 import { UserAuth } from "../../modules/identity/entities/user-auth.js";
 import { OrganizationMembership } from "../../modules/identity/entities/organization-membership.js";
 import { EmailVerificationToken } from "../../modules/identity/entities/email-verification-token.js";
+import { OutboxEvent } from "../events/outbox/outbox-event.entity.js";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -23,5 +24,6 @@ export const AppDataSource = new DataSource({
     UserAuth,
     OrganizationMembership,
     EmailVerificationToken,
+    OutboxEvent,
   ],
 });
