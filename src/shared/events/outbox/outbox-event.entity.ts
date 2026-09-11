@@ -30,6 +30,12 @@ export class OutboxEvent {
   nextAttemptAt!: Date;
 
   @Column({ type: "timestamp with time zone", nullable: true })
+  lockedAt!: Date | null;
+
+  @Column({ type: "varchar", length: 100, nullable: true })
+  lockedBy!: string | null;
+
+  @Column({ type: "timestamp with time zone", nullable: true })
   processedAt!: Date | null;
 
   @Column({ type: "timestamp with time zone", nullable: true })

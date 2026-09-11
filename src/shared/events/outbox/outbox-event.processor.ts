@@ -2,30 +2,49 @@ import { outboxEventRepository } from "./outbox-event.repository.js";
 import { userRegisteredHandler } from "../../../modules/identity/events/user-registered.handler.js";
 import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
 import { OutboxEvent } from "./outbox-event.entity.js";
-
+import { randomUUID } from "node:crypto";
 class OutboxEventProcessor {
+  private readonly workerId = randomUUID();
   async process(): Promise<void> {
-    const events = await outboxEventRepository.manager.transaction(
-      async (manager) => {
-        return manager
-          .getRepository(OutboxEvent)
-          .createQueryBuilder("event")
-          .setLock("pessimistic_write")
-          .setOnLocked("skip_locked")
-          .where("event.processedAt IS NULL")
-          .andWhere("event.failedAt IS NULL")
-          .andWhere("event.nextAttemptAt <= :now", {
-            now: new Date(),
-          })
-          .orderBy("event.createdAt", "ASC")
-          .take(10)
-          .getMany();
-      },
-    );
+    const events = await this.claimEvents();
 
     for (const event of events) {
       await this.processEvent(event.id);
     }
+  }
+
+  private async claimEvents(): Promise<OutboxEvent[]> {
+    return outboxEventRepository.manager.transaction(async (manager) => {
+      const repository = manager.getRepository(OutboxEvent);
+      const events = await repository
+        .createQueryBuilder("event")
+        .setLock("pessimistic_write")
+        .setOnLocked("skip_locked")
+        .where("event.processedAt IS NULL")
+        .andWhere("event.failedAt IS NULL")
+        .andWhere("event.nextAttemptAt <= :now", {
+          now: new Date(),
+        })
+        .andWhere(
+          `(event.lockedAt IS NULL OR event.lockedAt < :lockExpiredAt)`,
+          {
+            lockExpiredAt: new Date(Date.now() - 5 * 60 * 1000),
+          },
+        )
+        .orderBy("event.createdAt", "ASC")
+        .take(10)
+        .getMany();
+      if (events.length === 0) {
+        return [];
+      }
+      const now = new Date();
+      for (const event of events) {
+        event.lockedAt = now;
+        event.lockedBy = this.workerId;
+      }
+      await repository.save(events);
+      return events;
+    });
   }
 
   private async processEvent(eventId: string): Promise<void> {
