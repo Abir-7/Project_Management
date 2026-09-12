@@ -9,7 +9,7 @@ class OutboxEventProcessor {
     const events = await this.claimEvents();
 
     for (const event of events) {
-      await this.processEvent(event.id);
+      await this.processEvent(event);
     }
   }
 
@@ -47,18 +47,10 @@ class OutboxEventProcessor {
     });
   }
 
-  private async processEvent(eventId: string): Promise<void> {
-    const event = await outboxEventRepository.findOne({
-      where: {
-        id: eventId,
-      },
-    });
+  private async processEvent(event: OutboxEvent): Promise<void> {
+    const isOwner = event.lockedBy === this.workerId;
 
-    if (!event) {
-      return;
-    }
-
-    if (event.processedAt || event.failedAt) {
+    if (!isOwner) {
       return;
     }
 
@@ -66,6 +58,9 @@ class OutboxEventProcessor {
       await this.handleEvent(event.eventName, event.payload);
 
       event.processedAt = new Date();
+      event.lockedAt = null;
+      event.lockedBy = null;
+      event.lastError = null;
 
       await outboxEventRepository.save(event);
     } catch (error) {
@@ -88,20 +83,16 @@ class OutboxEventProcessor {
   }
 
   private async handleFailure(
-    event: {
-      id: string;
-      attempts: number;
-      maxAttempts: number;
-      nextAttemptAt: Date;
-      failedAt: Date | null;
-      lastError: string | null;
-    },
+    event: OutboxEvent,
     error: unknown,
   ): Promise<void> {
     event.attempts += 1;
 
     event.lastError =
       error instanceof Error ? error.message : "Unknown event processing error";
+
+    event.lockedAt = null;
+    event.lockedBy = null;
 
     if (event.attempts >= event.maxAttempts) {
       event.failedAt = new Date();
