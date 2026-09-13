@@ -4,6 +4,6 @@ export interface SendEmailInput {
   text: string;
 }
 
-export interface EmailService {
+export interface EmailSendingService {
   sendEmail(input: SendEmailInput): Promise<void>;
 }

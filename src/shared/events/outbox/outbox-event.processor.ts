@@ -3,6 +3,7 @@ import { userRegisteredHandler } from "../../../modules/identity/events/handler/
 import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
 import { OutboxEvent } from "./outbox-event.entity.js";
 import { randomUUID } from "node:crypto";
+import { emailVerificationRequestedHandler } from "../../../modules/identity/events/handler/email-verification-requested.handler.js";
 class OutboxEventProcessor {
   private readonly workerId = randomUUID();
   async process(): Promise<void> {
@@ -75,6 +76,9 @@ class OutboxEventProcessor {
     switch (eventName) {
       case IDENTITY_EVENTS.USER_REGISTERED:
         await userRegisteredHandler.handle(payload);
+        return;
+      case IDENTITY_EVENTS.EMAIL_VERIFICATION_REQUESTED:
+        await emailVerificationRequestedHandler.handle(payload);
         return;
 
       default:

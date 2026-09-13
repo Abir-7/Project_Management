@@ -1,6 +1,9 @@
-import type { EmailService, SendEmailInput } from "./email.service.js";
+import type {
+  EmailSendingService,
+  SendEmailInput,
+} from "./email_sending.service.js";
 
-class ConsoleEmailService implements EmailService {
+class ConsoleEmailService implements EmailSendingService {
   async sendEmail(input: SendEmailInput): Promise<void> {
     console.log("📧 Email sent");
     console.log(`To: ${input.to}`);

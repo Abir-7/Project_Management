@@ -6,13 +6,14 @@ import { UserAuth } from "../entities/user-auth.js";
 import { User } from "../entities/user.js";
 import type { RegisterInput } from "../schemas/register.schema.js";
 import { hashValue } from "../../../shared/utils/hash.js";
-import { emailVerificationService } from "./email-verification.service.js";
+import { emailVerificationService } from "./email.service.js";
 import { IDENTITY_EVENTS } from "../events/identity.events.js";
 import { OutboxEvent } from "../../../shared/events/outbox/outbox-event.entity.js";
 import type { UserRegisteredEvent } from "../events/schema/user-registered.schema.js";
 import type { VerifyEmailInput } from "../schemas/email-verification.schema.js";
 import { hashToken } from "../../../shared/utils/token.js";
 import type { ResendVerificationInput } from "../schemas/resend-verification.schema.js";
+import type { EmailVerificationRequestedEvent } from "../events/schema/email-verification-requested.schema.js";
 
 class IdentityService {
   async register(input: RegisterInput) {
@@ -85,53 +86,69 @@ class IdentityService {
       };
     });
   }
-  async verifyEmail(input: VerifyEmailInput) {
+  async verifyEmail(token: string) {
     return AppDataSource.transaction(async (manager) => {
+      const tokenRepository = manager.getRepository(EmailVerificationToken);
+
       const userRepository = manager.getRepository(User);
-      const emailVerificationTokenRepository = manager.getRepository(
-        EmailVerificationToken,
-      );
-      const tokenHash = hashToken(input.token);
-      const verificationToken = await emailVerificationTokenRepository.findOne({
+
+      const tokenHash = hashToken(token);
+
+      const verificationToken = await tokenRepository.findOne({
         where: {
           tokenHash,
         },
+        lock: {
+          mode: "pessimistic_write",
+        },
       });
+
       if (!verificationToken) {
         throw new AppError({
           statusCode: StatusCodes.BAD_REQUEST,
           message: "Invalid verification token",
         });
       }
+
       if (verificationToken.usedAt) {
         throw new AppError({
           statusCode: StatusCodes.BAD_REQUEST,
           message: "Verification token has already been used",
         });
       }
+
       if (verificationToken.expiresAt < new Date()) {
         throw new AppError({
           statusCode: StatusCodes.BAD_REQUEST,
-          message: "Invalid or expired verification token",
+          message: "Verification token has expired",
         });
       }
+
       const user = await userRepository.findOne({
         where: {
           id: verificationToken.userId,
         },
       });
+
       if (!user) {
         throw new AppError({
           statusCode: StatusCodes.NOT_FOUND,
-          message: "User not found",
+          message: "User account not found",
         });
       }
+
       user.emailVerified = true;
+
       await userRepository.save(user);
+
       verificationToken.usedAt = new Date();
-      await emailVerificationTokenRepository.save(verificationToken);
+
+      await tokenRepository.save(verificationToken);
+
       return {
-        message: "Email verified successfully",
+        id: user.id,
+        email: user.email,
+        emailVerified: user.emailVerified,
       };
     });
   }
@@ -183,7 +200,7 @@ class IdentityService {
           emailVerificationTokenRepository,
         );
 
-      const event: UserRegisteredEvent = {
+      const event: EmailVerificationRequestedEvent = {
         userId: user.id,
         email: user.email,
         name: user.name,
@@ -191,7 +208,7 @@ class IdentityService {
       };
 
       await outboxEventRepository.save({
-        eventName: "user.registered",
+        eventName: IDENTITY_EVENTS.EMAIL_VERIFICATION_REQUESTED,
         payload: event as Record<string, unknown>,
       });
 
