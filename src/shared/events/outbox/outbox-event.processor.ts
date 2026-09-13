@@ -1,5 +1,5 @@
 import { outboxEventRepository } from "./outbox-event.repository.js";
-import { userRegisteredHandler } from "../../../modules/identity/events/user-registered.handler.js";
+import { userRegisteredHandler } from "../../../modules/identity/events/handler/user-registered.handler.js";
 import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
 import { OutboxEvent } from "./outbox-event.entity.js";
 import { randomUUID } from "node:crypto";

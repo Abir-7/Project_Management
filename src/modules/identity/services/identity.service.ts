@@ -9,7 +9,10 @@ import { hashValue } from "../../../shared/utils/hash.js";
 import { emailVerificationService } from "./email-verification.service.js";
 import { IDENTITY_EVENTS } from "../events/identity.events.js";
 import { OutboxEvent } from "../../../shared/events/outbox/outbox-event.entity.js";
-import type { UserRegisteredEvent } from "../events/user-registered.schema.js";
+import type { UserRegisteredEvent } from "../events/schema/user-registered.schema.js";
+import type { VerifyEmailInput } from "../schemas/email-verification.schema.js";
+import { hashToken } from "../../../shared/utils/token.js";
+import type { ResendVerificationInput } from "../schemas/resend-verification.schema.js";
 
 class IdentityService {
   async register(input: RegisterInput) {
@@ -79,6 +82,121 @@ class IdentityService {
         techStack: user.techStack,
         emailVerified: user.emailVerified,
         createdAt: user.createdAt,
+      };
+    });
+  }
+  async verifyEmail(input: VerifyEmailInput) {
+    return AppDataSource.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+      const emailVerificationTokenRepository = manager.getRepository(
+        EmailVerificationToken,
+      );
+      const tokenHash = hashToken(input.token);
+      const verificationToken = await emailVerificationTokenRepository.findOne({
+        where: {
+          tokenHash,
+        },
+      });
+      if (!verificationToken) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Invalid verification token",
+        });
+      }
+      if (verificationToken.usedAt) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Verification token has already been used",
+        });
+      }
+      if (verificationToken.expiresAt < new Date()) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Invalid or expired verification token",
+        });
+      }
+      const user = await userRepository.findOne({
+        where: {
+          id: verificationToken.userId,
+        },
+      });
+      if (!user) {
+        throw new AppError({
+          statusCode: StatusCodes.NOT_FOUND,
+          message: "User not found",
+        });
+      }
+      user.emailVerified = true;
+      await userRepository.save(user);
+      verificationToken.usedAt = new Date();
+      await emailVerificationTokenRepository.save(verificationToken);
+      return {
+        message: "Email verified successfully",
+      };
+    });
+  }
+  async resendVerificationEmail(input: ResendVerificationInput) {
+    return AppDataSource.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+
+      const emailVerificationTokenRepository = manager.getRepository(
+        EmailVerificationToken,
+      );
+
+      const outboxEventRepository = manager.getRepository(OutboxEvent);
+
+      const user = await userRepository.findOne({
+        where: {
+          email: input.email,
+        },
+      });
+
+      if (!user) {
+        throw new AppError({
+          statusCode: StatusCodes.NOT_FOUND,
+          message: "User not found",
+        });
+      }
+
+      if (user.emailVerified) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Email is already verified",
+        });
+      }
+
+      await emailVerificationTokenRepository
+        .createQueryBuilder()
+        .update(EmailVerificationToken)
+        .set({
+          usedAt: new Date(),
+        })
+        .where("userId = :userId", {
+          userId: user.id,
+        })
+        .andWhere("usedAt IS NULL")
+        .execute();
+
+      const verificationToken =
+        await emailVerificationService.createVerificationToken(
+          user.id,
+          emailVerificationTokenRepository,
+        );
+
+      const event: UserRegisteredEvent = {
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        verificationToken,
+      };
+
+      await outboxEventRepository.save({
+        eventName: "user.registered",
+        payload: event as Record<string, unknown>,
+      });
+
+      return {
+        message: "Verification email sent",
       };
     });
   }

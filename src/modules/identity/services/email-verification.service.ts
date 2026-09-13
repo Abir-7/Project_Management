@@ -41,6 +41,9 @@ class EmailVerificationService {
         where: {
           tokenHash,
         },
+        lock: {
+          mode: "pessimistic_write",
+        },
       });
 
       if (!verificationToken) {

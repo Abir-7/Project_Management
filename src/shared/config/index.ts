@@ -30,4 +30,5 @@ export const env = {
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",
     refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "30d",
   },
+  appUrl: process.env.APP_URL,
 } as const;
