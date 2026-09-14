@@ -5,7 +5,7 @@ import { EmailVerificationToken } from "../entities/email-verification-token.js"
 import { UserAuth } from "../entities/user-auth.js";
 import { User } from "../entities/user.js";
 import type { RegisterInput } from "../schemas/register.schema.js";
-import { hashValue } from "../../../shared/utils/hash.js";
+import { compareValue, hashValue } from "../../../shared/utils/hash.js";
 import { emailVerificationService } from "./email.service.js";
 import { IDENTITY_EVENTS } from "../events/identity.events.js";
 import { OutboxEvent } from "../../../shared/events/outbox/outbox-event.entity.js";
@@ -14,6 +14,11 @@ import type { VerifyEmailInput } from "../schemas/email-verification.schema.js";
 import { hashToken } from "../../../shared/utils/token.js";
 import type { ResendVerificationInput } from "../schemas/resend-verification.schema.js";
 import type { EmailVerificationRequestedEvent } from "../events/schema/email-verification-requested.schema.js";
+import type { LoginInput } from "../schemas/login.schema.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../../../shared/utils/jwt.js";
 
 class IdentityService {
   async register(input: RegisterInput) {
@@ -214,6 +219,71 @@ class IdentityService {
 
       return {
         message: "Verification email sent",
+      };
+    });
+  }
+
+  async login(input: LoginInput) {
+    return AppDataSource.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+      const userAuthRepository = manager.getRepository(UserAuth);
+      const { email, password } = input;
+      const user = await userRepository.findOne({ where: { email: email } });
+
+      if (!user) {
+        throw new AppError({
+          message: "User not found.",
+          statusCode: StatusCodes.NOT_FOUND,
+        });
+      }
+      if (!user.emailVerified) {
+        throw new AppError({
+          message: "Email not verified",
+          statusCode: StatusCodes.FORBIDDEN,
+        });
+      }
+      const userAuth = await userAuthRepository.findOne({
+        where: { userId: user.id },
+      });
+      if (!userAuth) {
+        throw new AppError({
+          message: "Invalid email or password.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+      const isPasswordValid = await compareValue(
+        password,
+        userAuth.passwordHash,
+      );
+
+      if (!isPasswordValid) {
+        throw new AppError({
+          message: "Invalid email or password.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+
+      const accessToken = generateAccessToken({
+        userId: user.id,
+      });
+
+      const refreshToken = generateRefreshToken({
+        userId: user.id,
+      });
+
+      userAuth.refreshTokenHash = hashToken(refreshToken);
+      userAuth.lastLoginAt = new Date();
+      await userAuthRepository.save(userAuth);
+
+      return {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          emailVerified: user.emailVerified,
+        },
+        accessToken,
+        refreshToken,
       };
     });
   }

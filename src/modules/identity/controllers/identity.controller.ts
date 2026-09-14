@@ -20,7 +20,7 @@ class IdentityController {
   }
 
   async verifyEmail(req: Request, res: Response): Promise<void> {
-    const { token } = req.body as VerifyEmailInput;
+    const { token } = req.query as VerifyEmailInput;
     const result = await identityService.verifyEmail(token);
 
     sendSuccess(res, {

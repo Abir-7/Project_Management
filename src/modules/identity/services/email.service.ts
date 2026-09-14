@@ -38,7 +38,7 @@ class EmailVerificationService {
     input: SendVerificationEmailInput,
   ): Promise<void> {
     const verificationUrl =
-      `${env.appUrl}/api/v1/identity/verify-email` +
+      `${env.appUrl}/api/auth/verify-email` +
       `?token=${encodeURIComponent(input.verificationToken)}`;
 
     await this.emailService.sendEmail({
