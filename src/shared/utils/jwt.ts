@@ -18,3 +18,7 @@ export const generateRefreshToken = (payload: JwtPayload): string => {
     expiresIn: env.jwt.refreshTokenTtl as StringValue,
   });
 };
+
+export const verifyToken = (token: string): JwtPayload => {
+  return jwt.verify(token, env.jwt.secret) as JwtPayload;
+};

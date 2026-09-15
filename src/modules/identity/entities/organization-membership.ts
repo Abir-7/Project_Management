@@ -6,6 +6,7 @@ import {
   Unique,
   UpdateDateColumn,
 } from "typeorm";
+import type { OrganizationRole } from "../constants/organization-role.js";
 
 @Entity("organization_memberships")
 @Unique(["userId", "organizationId"])
@@ -23,7 +24,7 @@ export class OrganizationMembership {
   branchId!: string | null;
 
   @Column({ type: "varchar", length: 50 })
-  role!: string;
+  role!: OrganizationRole;
 
   @Column({ type: "boolean", default: true })
   isActive!: boolean;

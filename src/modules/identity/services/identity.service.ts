@@ -18,7 +18,10 @@ import type { LoginInput } from "../schemas/login.schema.js";
 import {
   generateAccessToken,
   generateRefreshToken,
+  verifyToken,
+  type JwtPayload,
 } from "../../../shared/utils/jwt.js";
+import type { RefreshTokenInput } from "../schemas/refresh-token.schema.js";
 
 class IdentityService {
   async register(input: RegisterInput) {
@@ -286,6 +289,89 @@ class IdentityService {
         refreshToken,
       };
     });
+  }
+  async refreshToken(input: RefreshTokenInput) {
+    return AppDataSource.transaction(async (manager) => {
+      const userRepository = manager.getRepository(User);
+      const userAuthRepository = manager.getRepository(UserAuth);
+      let payload: JwtPayload;
+      try {
+        payload = verifyToken(input.refreshToken);
+      } catch {
+        throw new AppError({
+          message: "Invalid refresh token.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+      const user = await userRepository.findOne({
+        where: { id: payload.userId },
+      });
+
+      if (!user) {
+        throw new AppError({
+          message: "Invalid refresh token.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+      const userAuth = await userAuthRepository.findOne({
+        where: { userId: user.id },
+      });
+      if (!userAuth || !userAuth.refreshTokenHash) {
+        throw new AppError({
+          message: "Invalid refresh token.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+      const isValidRefreshToken =
+        hashToken(input.refreshToken) === userAuth.refreshTokenHash;
+
+      if (!isValidRefreshToken) {
+        throw new AppError({
+          message: "Invalid refresh token.",
+          statusCode: StatusCodes.UNAUTHORIZED,
+        });
+      }
+      const accessToken = generateAccessToken({
+        userId: user.id,
+      });
+
+      const refreshToken = generateRefreshToken({
+        userId: user.id,
+      });
+      userAuth.refreshTokenHash = hashToken(refreshToken);
+
+      await userAuthRepository.save(userAuth);
+
+      return {
+        accessToken,
+        refreshToken,
+      };
+    });
+  }
+
+  async logout(userId: string) {
+    const userAuthRepository = AppDataSource.getRepository(UserAuth);
+
+    const userAuth = await userAuthRepository.findOne({
+      where: {
+        userId,
+      },
+    });
+
+    if (!userAuth) {
+      throw new AppError({
+        statusCode: StatusCodes.NOT_FOUND,
+        message: "User authentication record not found",
+      });
+    }
+
+    userAuth.refreshTokenHash = null;
+
+    await userAuthRepository.save(userAuth);
+
+    return {
+      message: "Logged out successfully",
+    };
   }
 }
 
