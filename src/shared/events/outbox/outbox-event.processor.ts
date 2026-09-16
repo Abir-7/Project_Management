@@ -1,11 +1,16 @@
 import { outboxEventRepository } from "./outbox-event.repository.js";
-import { userRegisteredHandler } from "../../../modules/identity/events/handler/user-registered.handler.js";
-import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
+// import { userRegisteredHandler } from "../../../modules/identity/events/handler/user-registered.handler.js";
+// import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
 import { OutboxEvent } from "./outbox-event.entity.js";
 import { randomUUID } from "node:crypto";
-import { emailVerificationRequestedHandler } from "../../../modules/identity/events/handler/email-verification-requested.handler.js";
-class OutboxEventProcessor {
+import type { OutboxEventHandler } from "../../../contracts/ports/outbox-event-handler.js";
+import type { IdentityEvent } from "../../../modules/identity/events/identity.events.js";
+// import { emailVerificationRequestedHandler } from "../../../modules/identity/events/handler/email-verification-requested.handler.js";
+export class OutboxEventProcessor {
   private readonly workerId = randomUUID();
+
+  constructor(private readonly handlers: Map<string, OutboxEventHandler>) {}
+
   async process(): Promise<void> {
     const events = await this.claimEvents();
 
@@ -70,20 +75,15 @@ class OutboxEventProcessor {
   }
 
   private async handleEvent(
-    eventName: string,
+    eventName: IdentityEvent,
     payload: Record<string, unknown>,
   ): Promise<void> {
-    switch (eventName) {
-      case IDENTITY_EVENTS.USER_REGISTERED:
-        await userRegisteredHandler.handle(payload);
-        return;
-      case IDENTITY_EVENTS.EMAIL_VERIFICATION_REQUESTED:
-        await emailVerificationRequestedHandler.handle(payload);
-        return;
-
-      default:
-        throw new Error(`Unknown event: ${eventName}`);
+    const handler = this.handlers.get(eventName);
+    if (!handler) {
+      throw new Error(`Unknown event: ${eventName}`);
     }
+
+    await handler.handle(payload);
   }
 
   private async handleFailure(
@@ -114,4 +114,10 @@ class OutboxEventProcessor {
   }
 }
 
-export const outboxEventProcessor = new OutboxEventProcessor();
+// export const outboxEventProcessor = new OutboxEventProcessor();
+
+export const createOutboxEventProcessor = (
+  handlers: Map<string, OutboxEventHandler>,
+): OutboxEventProcessor => {
+  return new OutboxEventProcessor(handlers);
+};

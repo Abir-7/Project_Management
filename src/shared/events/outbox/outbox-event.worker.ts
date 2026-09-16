@@ -1,8 +1,10 @@
-import { outboxEventProcessor } from "./outbox-event.processor.js";
+import type { OutboxEventProcessor } from "./outbox-event.processor.js";
 
 class OutboxEventWorker {
   private interval: NodeJS.Timeout | null = null;
   private isRunning = false;
+
+  constructor(private readonly processor: OutboxEventProcessor) {}
 
   start(): void {
     if (this.interval) {
@@ -33,7 +35,7 @@ class OutboxEventWorker {
     this.isRunning = true;
 
     try {
-      await outboxEventProcessor.process();
+      await this.processor.process();
     } catch (error) {
       console.error("Outbox worker failed:", error);
     } finally {
@@ -42,4 +44,8 @@ class OutboxEventWorker {
   }
 }
 
-export const outboxEventWorker = new OutboxEventWorker();
+export const createOutboxEventWorker = (
+  processor: OutboxEventProcessor,
+): OutboxEventWorker => {
+  return new OutboxEventWorker(processor);
+};
