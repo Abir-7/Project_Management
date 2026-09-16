@@ -1,21 +1,11 @@
-import { ORGANIZATION_ROLES } from "../../constants/organization-role";
-
-interface ITenant {
-  organizationId: string;
-  membershipId: string;
-  branchId: string | null;
-  role: ORGANIZATION_ROLES;
-}
-
-export interface JwtPayload {
-  userId: string;
-}
+import type { TenantContext } from "../../contracts/types/tenant-context.ts";
+import { ORGANIZATION_ROLES } from "./../../contracts/constant/organization-role";
 
 declare global {
   namespace Express {
     interface Request {
       user: JwtPayload;
-      tenant: ITenant;
+      tenant: TenantContext;
     }
   }
 }
