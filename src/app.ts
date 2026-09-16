@@ -4,8 +4,7 @@ import { notFoundMiddleware } from "./shared/middlewares/not-found.middleware.js
 import { errorMiddleware } from "./shared/middlewares/error.middleware.js";
 
 import { createResolveTenant } from "./shared/middlewares/resolve-tenant.js";
-import { tenantService } from "./modules/identity/services/tenant.service.js";
-import createIdentityRouter from "./modules/identity/index.js";
+import createIdentityRouter, { tenantService } from "./modules/identity/index.js";
 import { AppDataSource } from "./bootstrap/data-source.js";
 
 const app: Express = express();

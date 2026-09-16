@@ -1,11 +1,8 @@
 import { outboxEventRepository } from "./outbox-event.repository.js";
-// import { userRegisteredHandler } from "../../../modules/identity/events/handler/user-registered.handler.js";
-// import { IDENTITY_EVENTS } from "../../../modules/identity/events/identity.events.js";
 import { OutboxEvent } from "./outbox-event.entity.js";
 import { randomUUID } from "node:crypto";
 import type { OutboxEventHandler } from "../../../contracts/ports/outbox-event-handler.js";
 
-// import { emailVerificationRequestedHandler } from "../../../modules/identity/events/handler/email-verification-requested.handler.js";
 export class OutboxEventProcessor {
   private readonly workerId = randomUUID();
 

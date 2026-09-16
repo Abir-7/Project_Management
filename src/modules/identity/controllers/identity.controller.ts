@@ -8,6 +8,8 @@ import type { VerifyEmailInput } from "../schemas/email-verification.schema.js";
 import type { LoginInput } from "../schemas/login.schema.js";
 import type { RefreshTokenInput } from "../schemas/refresh-token.schema.js";
 
+import { AppError } from "../../../shared/errors/app-error.js";
+
 class IdentityController {
   async register(req: Request, res: Response): Promise<void> {
     const input = req.body as RegisterInput;
@@ -62,6 +64,12 @@ class IdentityController {
     });
   }
   async logout(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      throw new AppError({
+        statusCode: StatusCodes.UNAUTHORIZED,
+        message: "Authentication required",
+      });
+    }
     const userId = req.user.userId;
     const result = await identityService.logout(userId);
     sendSuccess(res, {

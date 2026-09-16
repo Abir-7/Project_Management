@@ -1,11 +1,12 @@
-import type { TenantContext } from "../../contracts/types/tenant-context.ts";
-import { ORGANIZATION_ROLES } from "./../../contracts/constant/organization-role";
+import type { TenantContext } from "../../contracts/types/tenant-context.js";
+import type { JwtPayload } from "../utils/jwt.js";
 
 declare global {
   namespace Express {
     interface Request {
-      user: JwtPayload;
-      tenant: TenantContext;
+      user?: JwtPayload;
+      tenant?: TenantContext;
     }
   }
 }
+

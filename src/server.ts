@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { AppDataSource } from "./bootstrap/data-source.js";
-import { identityEventHandlers } from "./modules/identity/events/event-handlers.js";
+import { identityEventHandlers } from "./modules/identity/index.js";
 import { env } from "./shared/config/index.js";
 import { createOutboxEventProcessor } from "./shared/events/outbox/outbox-event.processor.js";
 import { createOutboxEventWorker } from "./shared/events/outbox/outbox-event.worker.js";

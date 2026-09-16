@@ -31,6 +31,13 @@ export const createResolveTenant = (
         });
       }
 
+      if (!req.user) {
+        throw new AppError({
+          statusCode: StatusCodes.UNAUTHORIZED,
+          message: "Authentication required before organization resolution",
+        });
+      }
+
       const tenant = await tenantResolver.resolve(
         req.user.userId,
         parsedOrganizationId.data,
