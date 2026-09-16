@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ORGANIZATION_ROLES } from "../../../contracts/constant/organization-role.js";
+import { ORGANIZATION_ROLES } from "../../../contracts/constants/organization-role.js";
 
 export const organizationRoleSchema = z.enum(
   Object.values(ORGANIZATION_ROLES) as [

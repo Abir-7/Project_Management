@@ -6,7 +6,7 @@ import {
   Unique,
   UpdateDateColumn,
 } from "typeorm";
-import type { OrganizationRole } from "../../../contracts/constant/organization-role.js";
+import type { OrganizationRole } from "../../../contracts/types/organization-role.js";
 
 @Entity("organization_memberships")
 @Unique(["userId", "organizationId"])
