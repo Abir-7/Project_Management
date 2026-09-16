@@ -2,13 +2,15 @@ import type { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 
+import type { TenantResolver } from "../../contracts/ports/tenant-resolver.js";
 import { AppError } from "../errors/app-error.js";
-import { organizationMembershipRepository } from "../../modules/identity/repositories/organization-membership.repository.js";
 
-const organizationIdSchema = z.string();
+const organizationIdSchema = z.uuid();
 
-export const resolveTenant: RequestHandler = async (req, _res, next) => {
-  try {
+export const createResolveTenant = (
+  tenantResolver: TenantResolver,
+): RequestHandler => {
+  return async (req, _res, next) => {
     const organizationId = req.header("X-Organization-Id");
 
     if (!organizationId) {
@@ -27,30 +29,20 @@ export const resolveTenant: RequestHandler = async (req, _res, next) => {
       });
     }
 
-    const membership = await organizationMembershipRepository.findOne({
-      where: {
-        userId: req.user.userId,
-        organizationId: parsedOrganizationId.data,
-        isActive: true,
-      },
-    });
+    const tenant = await tenantResolver.resolve(
+      req.user.userId,
+      parsedOrganizationId.data,
+    );
 
-    if (!membership) {
+    if (!tenant) {
       throw new AppError({
         statusCode: StatusCodes.FORBIDDEN,
         message: "You do not have access to this organization",
       });
     }
 
-    req.tenant = {
-      organizationId: membership.organizationId,
-      membershipId: membership.id,
-      branchId: membership.branchId,
-      role: membership.role,
-    };
+    req.tenant = tenant;
 
     next();
-  } catch (error) {
-    next(error);
-  }
+  };
 };

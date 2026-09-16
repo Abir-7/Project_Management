@@ -2,10 +2,7 @@ import type { StringValue } from "ms";
 import jwt from "jsonwebtoken";
 
 import { env } from "../config/index.js";
-
-export interface JwtPayload {
-  userId: string;
-}
+import type { JwtPayload } from "../types/express.js";
 
 export const generateAccessToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, env.jwt.secret, {
