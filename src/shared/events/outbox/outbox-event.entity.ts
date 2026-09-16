@@ -5,7 +5,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import type { IdentityEvent } from "../../../modules/identity/events/identity.events.js";
 
 @Entity("outbox_events")
 export class OutboxEvent {
@@ -13,7 +12,7 @@ export class OutboxEvent {
   id!: string;
 
   @Column({ type: "varchar", length: 100 })
-  eventName!: IdentityEvent;
+  eventName!: string;
 
   @Column({ type: "jsonb" })
   payload!: Record<string, unknown>;
