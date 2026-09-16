@@ -1,3 +1,4 @@
+import { ORGANIZATION_ROLES } from "../../constants/organization-role";
 import type { JwtPayload } from "../utils/jwt.ts";
 
 declare global {
@@ -9,7 +10,7 @@ declare global {
         organizationId: string;
         membershipId: string;
         branchId: string | null;
-        role: string;
+        role: ORGANIZATION_ROLES;
       };
     }
   }

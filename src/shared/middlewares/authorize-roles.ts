@@ -2,8 +2,11 @@ import type { RequestHandler } from "express";
 import { StatusCodes } from "http-status-codes";
 
 import { AppError } from "../errors/app-error.js";
+import type { OrganizationRole } from "../../contracts/index.js";
 
-export const authorizeRoles = (...allowedRoles: string[]): RequestHandler => {
+export const authorizeRoles = (
+  ...allowedRoles: OrganizationRole[]
+): RequestHandler => {
   return (req, _res, next) => {
     if (!req.tenant) {
       next(
