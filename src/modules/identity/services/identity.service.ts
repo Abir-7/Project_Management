@@ -1,5 +1,5 @@
 import { StatusCodes } from "http-status-codes";
-import { AppDataSource } from "../../../shared/database/data-source.js";
+
 import { AppError } from "../../../shared/errors/app-error.js";
 import { EmailVerificationToken } from "../entities/email-verification-token.js";
 import { UserAuth } from "../entities/user-auth.js";
@@ -22,6 +22,7 @@ import {
   type JwtPayload,
 } from "../../../shared/utils/jwt.js";
 import type { RefreshTokenInput } from "../schemas/refresh-token.schema.js";
+import { AppDataSource } from "../../../bootstrap/data-source.js";
 
 class IdentityService {
   async register(input: RegisterInput) {
