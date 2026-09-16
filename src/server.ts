@@ -1,6 +1,7 @@
 import app from "./app.js";
+import { AppDataSource } from "./bootstrap/data-source.js";
 import { env } from "./shared/config/index.js";
-import { AppDataSource } from "./shared/database/data-source.js";
+
 import { outboxEventWorker } from "./shared/events/outbox/outbox-event.worker.js";
 
 let server: ReturnType<typeof app.listen>;
