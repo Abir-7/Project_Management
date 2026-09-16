@@ -1,11 +1,19 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 
 import authRouter from "./routes/auth.route.js";
-import organizationRouter from "./routes/organization.route.js";
+import createOrganizationRouter from "./routes/organization.route.js";
 
-const router = Router();
+const createIdentityRouter = (resolveTenantMiddleware: RequestHandler) => {
+  const router = Router();
 
-router.use("/auth", authRouter);
-router.use("/organizations", organizationRouter);
+  router.use("/auth", authRouter);
 
-export default router;
+  router.use(
+    "/organizations",
+    createOrganizationRouter(resolveTenantMiddleware),
+  );
+
+  return router;
+};
+
+export default createIdentityRouter;

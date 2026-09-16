@@ -11,38 +11,43 @@ export const createResolveTenant = (
   tenantResolver: TenantResolver,
 ): RequestHandler => {
   return async (req, _res, next) => {
-    const organizationId = req.header("X-Organization-Id");
+    try {
+      const organizationId = req.header("X-Organization-Id");
 
-    if (!organizationId) {
-      throw new AppError({
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: "Organization ID is required",
-      });
+      if (!organizationId) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Organization ID is required",
+        });
+      }
+
+      const parsedOrganizationId =
+        organizationIdSchema.safeParse(organizationId);
+
+      if (!parsedOrganizationId.success) {
+        throw new AppError({
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Invalid organization ID",
+        });
+      }
+
+      const tenant = await tenantResolver.resolve(
+        req.user.userId,
+        parsedOrganizationId.data,
+      );
+
+      if (!tenant) {
+        throw new AppError({
+          statusCode: StatusCodes.FORBIDDEN,
+          message: "You do not have access to this organization",
+        });
+      }
+
+      req.tenant = tenant;
+
+      next();
+    } catch (error) {
+      next(error);
     }
-
-    const parsedOrganizationId = organizationIdSchema.safeParse(organizationId);
-
-    if (!parsedOrganizationId.success) {
-      throw new AppError({
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: "Invalid organization ID",
-      });
-    }
-
-    const tenant = await tenantResolver.resolve(
-      req.user.userId,
-      parsedOrganizationId.data,
-    );
-
-    if (!tenant) {
-      throw new AppError({
-        statusCode: StatusCodes.FORBIDDEN,
-        message: "You do not have access to this organization",
-      });
-    }
-
-    req.tenant = tenant;
-
-    next();
   };
 };
