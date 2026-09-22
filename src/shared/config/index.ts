@@ -31,4 +31,8 @@ export const env = {
     refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "30d",
   },
   appUrl: process.env.APP_URL,
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+  },
 } as const;
