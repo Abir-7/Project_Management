@@ -4,9 +4,11 @@ import { notFoundMiddleware } from "./shared/middlewares/not-found.middleware.js
 import { errorMiddleware } from "./shared/middlewares/error.middleware.js";
 
 import { createResolveTenant } from "./shared/middlewares/resolve-tenant.js";
-import createIdentityRouter, { tenantService } from "./modules/identity/index.js";
+import createIdentityRouter, {
+  tenantService,
+} from "./modules/identity/index.js";
 import { AppDataSource } from "./bootstrap/data-source.js";
-
+import billingRouter from "./modules/billing/index.js";
 const app: Express = express();
 
 app.use(express.json());
@@ -29,9 +31,10 @@ app.get("/health", async (_req: Request, res: Response) => {
     });
   }
 });
-
+// route
 app.use("/api/identity", createIdentityRouter(resolveTenantMiddleware));
-
+app.use("/api/billing", billingRouter);
+//middleware
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
 
